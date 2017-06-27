@@ -57,7 +57,7 @@ describe Plucky::Query do
   context "#find_each" do
     it "returns a cursor" do
       cursor = described_class.new(@collection).find_each
-      cursor.should be_instance_of(Mongo::Cursor)
+      cursor.each.should be_instance_of(Enumerator)
     end
 
     it "works with and normalize criteria" do
@@ -78,8 +78,8 @@ describe Plucky::Query do
 
     it "is Ruby-like and returns a reset cursor if a block is given" do
       cursor = described_class.new(@collection).find_each {}
-      cursor.should be_instance_of(Mongo::Cursor)
-      cursor.next.should be_instance_of(Hash)
+      cursor.should be_instance_of(Enumerator)
+      cursor.next.should be_kind_of(Hash)
     end
   end
 
