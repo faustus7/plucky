@@ -10,7 +10,7 @@ module Plucky
     # Private
     OptionKeys = Set[
       :select, :offset, :order,                         # MM
-      :fields, :skip, :limit, :sort, :hint, :snapshot,  # Ruby Driver
+      :projection, :fields, :skip, :limit, :sort, :hint, :snapshot,  # Ruby Driver
       :batch_size, :timeout, :max_scan, :return_key,    # Ruby Driver
       :transformer, :show_disk_loc, :comment, :read,    # Ruby Driver
       :tag_sets, :acceptable_latency,                   # Ruby Driver
@@ -68,21 +68,19 @@ module Plucky
         query = clone.amend(opts)
 
         if block_given?
-          result = nil
-          query.cursor do |cursor|
-            result = cursor
-            cursor.each { |doc| yield doc }
-            cursor.rewind!
+          cursor = query.cursor
+          cursor.each do |doc|
+            yield doc
           end
-          result
+          cursor
         else
           query.cursor
         end
       end
 
       def find_one(opts={})
-        query = clone.amend(opts)
-        query.collection.find_one(query.criteria_hash, query.options_hash)
+        query = clone.amend(opts.merge(limit: -1))
+        query.cursor.first
       end
 
       def find(*ids)
@@ -109,7 +107,7 @@ module Plucky
 
       def remove(opts={}, driver_opts={})
         query = clone.amend(opts)
-        query.collection.remove(query.criteria_hash, driver_opts)
+        query.collection.find(query.criteria_hash, driver_opts).delete_many
       end
 
       def count(opts={})
@@ -123,9 +121,11 @@ module Plucky
         query.collection.distinct(key, query.criteria_hash)
       end
 
-      def fields(*args)
-        clone.tap { |query| query.options[:fields] = *args }
+      def projection(*args)
+        clone.tap { |query| query.options[:projection] = *args }
       end
+
+
 
       def ignore(*args)
         set_field_inclusion(args, 0)
@@ -178,12 +178,17 @@ module Plucky
       alias_method :exist?, :exists?
       alias_method :filter, :where
       alias_method :to_a,   :all
+      alias_method :fields, :projection
     end
     include DSL
 
     def update(document, driver_opts={})
       query = clone
-      query.collection.update(query.criteria_hash, document, driver_opts)
+      if driver_opts[:multi]
+        query.collection.find(query.criteria_hash).update_many(document, driver_opts)
+      else
+        query.collection.find(query.criteria_hash).update_one(document, driver_opts)
+      end
     end
 
     def amend(opts={})
@@ -233,7 +238,13 @@ module Plucky
     end
 
     def cursor(&block)
-      @collection.find(criteria_hash, options_hash, &block)
+      options = options_hash
+      view = @collection.find(criteria_hash, options)
+      if transformer = options[:transformer]
+        Transformer.new(view, transformer).to_enum
+      else
+        view.to_enum
+      end
     end
 
   private
@@ -261,7 +272,7 @@ module Plucky
     def set_field_inclusion(fields, value)
       fields_option = {}
       fields.each { |field| fields_option[symbolized_key(field)] = value }
-      clone.tap { |query| query.options[:fields] = fields_option }
+      clone.tap { |query| query.options[:projection] = fields_option }
     end
   end
 end
