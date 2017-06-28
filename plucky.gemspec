@@ -4,7 +4,7 @@ require File.expand_path('../lib/plucky/version', __FILE__)
 Gem::Specification.new do |s|
   s.name         = 'plucky'
   s.homepage     = 'http://github.com/jnunemaker/plucky'
-  s.summary      = 'Thin layer over the ruby driver that allows you to quickly grab hold of your data (pluck it!).'
+  s.summary      = 'Thin layer over the ruby driver that allows you to quickly grab hold of your data (pluck it!!!).'
   s.require_path = 'lib'
   s.homepage    = 'http://jnunemaker.github.com/plucky/'
   s.authors      = ['John Nunemaker']
@@ -17,5 +17,5 @@ Gem::Specification.new do |s|
   s.executables   = `git ls-files -- bin/*`.split("\n").map{ |f| File.basename(f) }
   s.require_paths = ["lib"]
 
-  s.add_dependency 'mongo', '~> 1.5'
+  s.add_dependency 'mongo', '~> 2.0'
 end
